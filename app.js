@@ -292,10 +292,8 @@ function selectFeature(feature) {
 function showBottomSheet(properties) {
     const sheet = document.getElementById('bottom-sheet');
     const nameEl = document.getElementById('feature-name');
-    const idEl = document.getElementById('feature-id');
     
     nameEl.textContent = properties.NOM;
-    idEl.textContent = properties.ID;
     
     sheet.classList.remove('hidden');
 }
