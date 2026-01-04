@@ -97,8 +97,9 @@ function initMap(geojsonData) {
     state.map = new maplibregl.Map({
         container: 'map',
         style: CONFIG.MAP_STYLE,
-        center: [2.3, 47.0],
-        zoom: CONFIG.INITIAL_ZOOM
+        center: [-1.553621, 47.218371],  // Nantes (longitude, latitude)
+        zoom: CONFIG.INITIAL_ZOOM,
+        attributionControl: false
     });
 
     state.popup = new maplibregl.Popup({
@@ -169,13 +170,6 @@ function initMap(geojsonData) {
                 'line-opacity': 1
             },
             filter: ['==', 'ID', '']
-        });
-        
-        // Fit bounds initial
-        const bounds = getBounds(geojsonData);
-        state.map.fitBounds(bounds, {
-            padding: { top: 50, bottom: 50, left: 30, right: 30 },
-            maxZoom: 10
         });
         
         // Événements de clic sur la carte
@@ -305,7 +299,7 @@ function selectFeatureById(featureId) {
     if (feature) {
         selectFeature(feature);
         
-        // Calculer le centroïde et voler vers lui
+        // Calculer le centroïde avec Turf.js et voler vers lui
         const centroid = calculateCentroid(feature.geometry);
         state.map.flyTo({
             center: centroid,
@@ -336,7 +330,7 @@ function showBottomSheet(properties) {
     
     nameEl.textContent = properties.NOM;
     
-    // Afficher le temps en minutes depuis cost_level
+    // Afficher le temps en minutes depuis cost_level_min
     const minutes = secondsToMinutes(properties.cost_level_min);
     timeEl.textContent = `${minutes} min`;
     
@@ -359,62 +353,30 @@ function closeBottomSheet() {
     }
 }
 
-// Calculer le centroïde d'une géométrie
+// Calculer le centroïde d'une géométrie avec Turf.js
 function calculateCentroid(geometry) {
-    if (geometry.type === 'Polygon') {
-        return getCentroidOfPolygon(geometry.coordinates[0]);
-    } else if (geometry.type === 'MultiPolygon') {
-        // Trouver le plus grand polygone
-        let largestPolygon = geometry.coordinates[0][0];
-        let largestArea = 0;
+    try {
+        // Créer une feature Turf à partir de la géométrie
+        const feature = turf.feature(geometry);
         
-        geometry.coordinates.forEach(poly => {
-            const area = calculatePolygonArea(poly[0]);
-            if (area > largestArea) {
-                largestArea = area;
-                largestPolygon = poly[0];
-            }
-        });
+        // Calculer le centroïde avec Turf
+        const centroid = turf.centroid(feature);
         
-        return getCentroidOfPolygon(largestPolygon);
+        // Retourner les coordonnées [lon, lat]
+        return centroid.geometry.coordinates;
+    } catch (error) {
+        console.error('Erreur calcul centroïde:', error);
+        
+        // Fallback : centre de la bbox
+        const bounds = getBoundsOfGeometry(geometry);
+        return [
+            (bounds[0] + bounds[2]) / 2,
+            (bounds[1] + bounds[3]) / 2
+        ];
     }
-    
-    // Fallback: centre de la bbox
-    const bounds = getBoundsOfGeometry(geometry);
-    return [
-        (bounds[0] + bounds[2]) / 2,
-        (bounds[1] + bounds[3]) / 2
-    ];
 }
 
-// Centroïde d'un polygone (moyenne des coordonnées)
-function getCentroidOfPolygon(coordinates) {
-    let sumLon = 0;
-    let sumLat = 0;
-    const count = coordinates.length;
-    
-    coordinates.forEach(coord => {
-        sumLon += coord[0];
-        sumLat += coord[1];
-    });
-    
-    return [sumLon / count, sumLat / count];
-}
-
-// Calculer l'aire approximative d'un polygone
-function calculatePolygonArea(coordinates) {
-    let area = 0;
-    const n = coordinates.length;
-    
-    for (let i = 0; i < n - 1; i++) {
-        area += coordinates[i][0] * coordinates[i + 1][1];
-        area -= coordinates[i + 1][0] * coordinates[i][1];
-    }
-    
-    return Math.abs(area / 2);
-}
-
-// Obtenir les bounds d'une géométrie
+// Obtenir les bounds d'une géométrie (fallback)
 function getBoundsOfGeometry(geometry) {
     let minLon = Infinity, minLat = Infinity;
     let maxLon = -Infinity, maxLat = -Infinity;
