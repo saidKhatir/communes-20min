@@ -1,23 +1,24 @@
 <!DOCTYPE html>
 <html lang="fr">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <title>Accessibilité 20 Minutes</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Accessibilité 20 Minutes</title>
     
-    <!-- MapLibre GL JS -->
+     <!-- MapLibre GL JS -->
     
-    <script src="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.js"></script>
-<link href="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+     <script src="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.js"></script>
+     <link href="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+    
     <!-- Styles locaux -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <!-- Header avec recherche -->
     <header class="header">
-        <h1 class="header-title">Communes accessibles jusqu'à 30 minutes du lieu de travail</h1>
+        <h1 class="header-title">Communes accessibles</h1>
         <div class="search-container">
             <input 
                 type="text" 
@@ -33,16 +34,71 @@
     <!-- Carte -->
     <div id="map" class="map-container"></div>
 
+    <!-- Bouton pour ouvrir le tableau -->
+    <button id="toggle-table-btn" class="toggle-table-btn" title="Voir le tableau des communes">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+        </svg>
+    </button>
+
+    <!-- Panneau tableau -->
+    <div id="table-panel" class="table-panel hidden">
+        <div class="table-panel-header">
+            <h2 class="table-panel-title">Communes par temps d'accès</h2>
+            <button id="close-table-btn" class="close-table-btn" aria-label="Fermer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="table-panel-content">
+            <!-- Filtres -->
+            <div class="table-filters">
+                <button class="filter-btn active" data-time="all">
+                    Toutes <span class="filter-count" id="count-all">0</span>
+                </button>
+                <button class="filter-btn filter-10min" data-time="600">
+                    10 min <span class="filter-count" id="count-600">0</span>
+                </button>
+                <button class="filter-btn filter-20min" data-time="1200">
+                    20 min <span class="filter-count" id="count-1200">0</span>
+                </button>
+                <button class="filter-btn filter-30min" data-time="1800">
+                    30 min <span class="filter-count" id="count-1800">0</span>
+                </button>
+            </div>
+
+            <!-- Tableau -->
+            <div class="table-wrapper">
+                <table class="communes-table">
+                    <thead>
+                        <tr>
+                            <th>Commune</th>
+                            <th>Code INSEE</th>
+                            <th>Temps d'accès</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Contenu généré dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Bottom Sheet -->
     <div id="bottom-sheet" class="bottom-sheet hidden">
         <div class="bottom-sheet-handle"></div>
         <div class="bottom-sheet-content">
             <h2 id="feature-name" class="feature-name"></h2>
             <div class="feature-details">
-                
                 <div class="detail-row accessibility-status">
-                    <span class="detail-label">Accessible à 20 min:</span>
-                    <span class="detail-value status-yes">Oui</span>
+                    <span class="detail-label">Temps d'accès :</span>
+                    <span id="feature-time" class="detail-value status-time"></span>
                 </div>
             </div>
             <button id="close-sheet" class="close-button">Fermer</button>

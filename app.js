@@ -27,6 +27,12 @@ const state = {
     popup: null
 };
 
+// État du tableau
+const tableState = {
+    currentFilter: 'all',
+    sortedData: []
+};
+
 // Convertir les secondes en minutes
 function secondsToMinutes(seconds) {
     return Math.round(seconds / 60);
@@ -58,6 +64,10 @@ async function init() {
         
         // Initialiser les événements
         initEventListeners();
+        
+        // Initialiser le tableau
+        initTable();
+        initTableEventListeners();
         
     } catch (error) {
         showError(`Erreur lors du chargement: ${error.message}`);
@@ -116,7 +126,7 @@ function initMap(geojsonData) {
                     ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
-                'fill-opacity': 0.2
+                'fill-opacity': 0.6
             }
         });
         
@@ -132,7 +142,7 @@ function initMap(geojsonData) {
                     ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
-                'line-width': 0.5,
+                'line-width': 1.5,
                 'line-opacity': 0.9
             }
         });
@@ -154,8 +164,8 @@ function initMap(geojsonData) {
             type: 'line',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'line-color': '#C9AEA9',
-                'line-width': 2,
+                'line-color': '#FFD700',
+                'line-width': 3,
                 'line-opacity': 1
             },
             filter: ['==', 'ID', '']
@@ -451,6 +461,128 @@ function showError(message) {
     setTimeout(() => {
         errorEl.classList.add('hidden');
     }, 5000);
+}
+
+// ========================================
+// FONCTIONS DU TABLEAU
+// ========================================
+
+// Initialiser le tableau
+function initTable() {
+    // Préparer les données triées
+    tableState.sortedData = state.features
+        .map(f => ({
+            id: f.properties.ID,
+            nom: f.properties.NOM,
+            insee: f.properties.INSEE_COM || 'N/A',
+            time: f.properties.cost_level_min,
+            geometry: f.geometry
+        }))
+        .sort((a, b) => {
+            // Trier par temps puis par nom
+            if (a.time !== b.time) return a.time - b.time;
+            return a.nom.localeCompare(b.nom);
+        });
+    
+    // Calculer les compteurs
+    updateCounters();
+    
+    // Afficher toutes les communes
+    renderTable('all');
+}
+
+// Mettre à jour les compteurs
+function updateCounters() {
+    const count600 = tableState.sortedData.filter(c => c.time <= 600).length;
+    const count1200 = tableState.sortedData.filter(c => c.time > 600 && c.time <= 1200).length;
+    const count1800 = tableState.sortedData.filter(c => c.time > 1200).length;
+    const countAll = tableState.sortedData.length;
+    
+    document.getElementById('count-600').textContent = count600;
+    document.getElementById('count-1200').textContent = count1200;
+    document.getElementById('count-1800').textContent = count1800;
+    document.getElementById('count-all').textContent = countAll;
+}
+
+// Afficher le tableau
+function renderTable(filterTime) {
+    const tbody = document.getElementById('table-body');
+    tableState.currentFilter = filterTime;
+    
+    // Filtrer les données
+    let filteredData = tableState.sortedData;
+    if (filterTime === '600') {
+        filteredData = tableState.sortedData.filter(c => c.time <= 600);
+    } else if (filterTime === '1200') {
+        filteredData = tableState.sortedData.filter(c => c.time > 600 && c.time <= 1200);
+    } else if (filterTime === '1800') {
+        filteredData = tableState.sortedData.filter(c => c.time > 1200);
+    }
+    
+    // Générer le HTML
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Aucune commune trouvée</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filteredData.map(commune => {
+        const minutes = secondsToMinutes(commune.time);
+        const timeClass = commune.time <= 600 ? 'time-600' : 
+                         commune.time <= 1200 ? 'time-1200' : 'time-1800';
+        
+        return `
+            <tr data-id="${commune.id}">
+                <td class="commune-name">${commune.nom}</td>
+                <td class="commune-insee">${commune.insee}</td>
+                <td><span class="time-badge ${timeClass}">${minutes} min</span></td>
+            </tr>
+        `;
+    }).join('');
+    
+    // Ajouter les événements de clic
+    tbody.querySelectorAll('tr').forEach(row => {
+        const communeId = row.dataset.id;
+        if (communeId) {
+            row.addEventListener('click', () => {
+                selectFeatureById(communeId);
+                closeTablePanel();
+            });
+        }
+    });
+}
+
+// Ouvrir le panneau tableau
+function openTablePanel() {
+    document.getElementById('table-panel').classList.remove('hidden');
+}
+
+// Fermer le panneau tableau
+function closeTablePanel() {
+    document.getElementById('table-panel').classList.add('hidden');
+}
+
+// Initialiser les événements du tableau
+function initTableEventListeners() {
+    const toggleBtn = document.getElementById('toggle-table-btn');
+    const closeBtn = document.getElementById('close-table-btn');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    
+    // Ouvrir/fermer le panneau
+    toggleBtn.addEventListener('click', openTablePanel);
+    closeBtn.addEventListener('click', closeTablePanel);
+    
+    // Filtres
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Retirer la classe active de tous les boutons
+            filterBtns.forEach(b => b.classList.remove('active'));
+            // Ajouter la classe active au bouton cliqué
+            btn.classList.add('active');
+            // Afficher les données filtrées
+            const filterTime = btn.dataset.time;
+            renderTable(filterTime);
+        });
+    });
 }
 
 // Démarrer l'application au chargement de la page
