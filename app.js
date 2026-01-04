@@ -112,8 +112,8 @@ function initMap(geojsonData) {
             paint: {
                 'fill-color': [
                     'case',
-                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
-                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    ['<=', ['get', 'cost_level_min'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
                 'fill-opacity': 0.2
@@ -128,8 +128,8 @@ function initMap(geojsonData) {
             paint: {
                 'line-color': [
                     'case',
-                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
-                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    ['<=', ['get', 'cost_level_min'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
                 'line-width': 0.5,
@@ -327,7 +327,7 @@ function showBottomSheet(properties) {
     nameEl.textContent = properties.NOM;
     
     // Afficher le temps en minutes depuis cost_level
-    const minutes = secondsToMinutes(properties.cost_level);
+    const minutes = secondsToMinutes(properties.cost_level_min);
     timeEl.textContent = `${minutes} min`;
     
     sheet.classList.remove('hidden');
