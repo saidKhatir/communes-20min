@@ -9,9 +9,14 @@ const CONFIG = {
         LINE: 'accessibility-line',
         HIGHLIGHT: 'accessibility-highlight'
     },
-    SOURCE_ID: 'accessibility-data'
+    SOURCE_ID: 'accessibility-data',
+    // Configuration des temps et couleurs
+    TIME_CONFIG: {
+        600: { color: '#34C759', label: '10 min' },      // Vert
+        1200: { color: '#FF9500', label: '20 min' },     // Orange
+        1800: { color: '#FF3B30', label: '30 min' }      // Rouge
+    }
 };
-
 
 // État de l'application
 const state = {
@@ -19,8 +24,24 @@ const state = {
     features: [],
     selectedFeatureId: null,
     searchIndex: [],
-    popup: null  // <-- AJOUT : référence à la popup
+    popup: null
 };
+
+// Convertir les secondes en minutes
+function secondsToMinutes(seconds) {
+    return Math.round(seconds / 60);
+}
+
+// Obtenir la configuration pour un temps donné
+function getTimeConfig(seconds) {
+    if (seconds <= 600) {
+        return CONFIG.TIME_CONFIG[600];
+    } else if (seconds <= 1200) {
+        return CONFIG.TIME_CONFIG[1200];
+    } else {
+        return CONFIG.TIME_CONFIG[1800];
+    }
+}
 
 // Initialisation de l'application
 async function init() {
@@ -66,7 +87,7 @@ function initMap(geojsonData) {
     state.map = new maplibregl.Map({
         container: 'map',
         style: CONFIG.MAP_STYLE,
-        center: [2.3, 47.0], // Centre France par défaut
+        center: [2.3, 47.0],
         zoom: CONFIG.INITIAL_ZOOM
     });
 
@@ -83,26 +104,36 @@ function initMap(geojsonData) {
             data: geojsonData
         });
         
-        // Layer fill (polygones)
+        // Layer fill (polygones) avec couleurs selon cost_level
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.FILL,
             type: 'fill',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'fill-color': '#007AFF',
-                'fill-opacity': 0.35
+                'fill-color': [
+                    'case',
+                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    CONFIG.TIME_CONFIG[1800].color
+                ],
+                'fill-opacity': 0.2
             }
         });
         
-        // Layer line (contours)
+        // Layer line (contours) avec couleurs selon cost_level
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.LINE,
             type: 'line',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'line-color': '#007AFF',
-                'line-width': 1.5,
-                'line-opacity': 0.8
+                'line-color': [
+                    'case',
+                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    CONFIG.TIME_CONFIG[1800].color
+                ],
+                'line-width': 0.5,
+                'line-opacity': 0.9
             }
         });
         
@@ -112,8 +143,8 @@ function initMap(geojsonData) {
             type: 'fill',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'fill-color': '#FF9500',
-                'fill-opacity': 0.6
+                'fill-color': '#FFD700',
+                'fill-opacity': 0.7
             },
             filter: ['==', 'ID', '']
         });
@@ -123,8 +154,8 @@ function initMap(geojsonData) {
             type: 'line',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'line-color': '#FF9500',
-                'line-width': 3,
+                'line-color': '#C9AEA9',
+                'line-width': 2,
                 'line-opacity': 1
             },
             filter: ['==', 'ID', '']
@@ -199,7 +230,7 @@ function handleSearch(query) {
     const queryLower = query.toLowerCase();
     const matches = state.searchIndex.filter(item => 
         item.nomLower.includes(queryLower)
-    ).slice(0, 10); // Limiter à 10 résultats
+    ).slice(0, 10);
     
     if (matches.length === 0) {
         searchResults.innerHTML = '<div class="search-no-results">Aucune commune trouvée</div>';
@@ -237,7 +268,7 @@ function handleMapClick(e) {
         const feature = e.features[0];
         const nom = feature.properties.NOM;
         
-        // AJOUT : Afficher la popup avec le nom
+        // Afficher la popup avec le nom
         state.popup
             .setLngLat(e.lngLat)
             .setHTML(`<strong>${nom}</strong>`)
@@ -249,7 +280,6 @@ function handleMapClick(e) {
 
 // Gérer le clic sur le fond de carte
 function handleMapBackgroundClick(e) {
-    // Vérifier qu'on n'a pas cliqué sur un polygone
     const features = state.map.queryRenderedFeatures(e.point, {
         layers: [CONFIG.LAYER_IDS.FILL]
     });
@@ -292,8 +322,13 @@ function selectFeature(feature) {
 function showBottomSheet(properties) {
     const sheet = document.getElementById('bottom-sheet');
     const nameEl = document.getElementById('feature-name');
+    const timeEl = document.getElementById('feature-time');
     
     nameEl.textContent = properties.NOM;
+    
+    // Afficher le temps en minutes depuis cost_level
+    const minutes = secondsToMinutes(properties.cost_level);
+    timeEl.textContent = `${minutes} min`;
     
     sheet.classList.remove('hidden');
 }
@@ -307,6 +342,11 @@ function closeBottomSheet() {
     state.selectedFeatureId = null;
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT, ['==', 'ID', '']);
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT + '-line', ['==', 'ID', '']);
+    
+    // Fermer la popup
+    if (state.popup) {
+        state.popup.remove();
+    }
 }
 
 // Calculer le centroïde d'une géométrie
@@ -371,7 +411,6 @@ function getBoundsOfGeometry(geometry) {
     
     const processCoordinates = (coords) => {
         if (typeof coords[0] === 'number') {
-            // C'est un point [lon, lat]
             minLon = Math.min(minLon, coords[0]);
             maxLon = Math.max(maxLon, coords[0]);
             minLat = Math.min(minLat, coords[1]);
