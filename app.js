@@ -3,7 +3,7 @@ const CONFIG = {
     GEOJSON_PATH: './accessibility_work.geojson',
     MAP_STYLE: 'https://tiles.openfreemap.org/styles/bright',
     INITIAL_ZOOM: 8,
-    SELECTED_ZOOM: 12,
+    SELECTED_ZOOM: 11,
     LAYER_IDS: {
         FILL: 'accessibility-fill',
         LINE: 'accessibility-line',
