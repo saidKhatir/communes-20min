@@ -4,7 +4,7 @@ Application web cartographique interactive permettant de visualiser les communes
 
 ## Description
 
-Cette carte met en évidence les communes accessibles depuis un **point de départ (lieu de travail)**, avec une coloration selon le temps estimé :
+Cette carte met en évidence les communes accessibles depuis un **point de départ (lieu de travail dans le nord-est de Nantes)**, avec une coloration selon le temps estimé :
 
 - 🟢 **Vert** : ≤ 10 minutes  
 - 🟠 **Orange** : ≤ 20 minutes  
