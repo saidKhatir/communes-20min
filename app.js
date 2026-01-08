@@ -1,6 +1,6 @@
 // Configuration
 const CONFIG = {
-    GEOJSON_PATH: './accessibility_work.geojson',
+    GEOJSON_PATH: './accessibility_work_prix_m2.geojson',
     MAP_STYLE: 'https://tiles.openfreemap.org/styles/bright',
     INITIAL_ZOOM: 8,
     SELECTED_ZOOM: 10.5,
@@ -327,16 +327,27 @@ function showBottomSheet(properties) {
     const sheet = document.getElementById('bottom-sheet');
     const nameEl = document.getElementById('feature-name');
     const timeEl = document.getElementById('feature-time');
+    const prixApptEl = document.getElementById('feature-prix-appt');
+    const prixMaisonEl = document.getElementById('feature-prix-maison');
+    const ventesApptEl = document.getElementById('feature-ventes-appt');
+    const ventesMaisonEl = document.getElementById('feature-ventes-maison');
     
     nameEl.textContent = properties.NOM;
     
-    // Afficher le temps en minutes depuis cost_level_min
+    // Afficher le temps en minutes
     const minutes = secondsToMinutes(properties.cost_level_min);
     timeEl.textContent = `${minutes} min`;
     
+    // Afficher les prix et nombre de ventes pour appartements
+    prixApptEl.textContent = formatPrice(properties.prix_m2_appartement);
+    ventesApptEl.textContent = formatVentes(properties.nb_ventes_appartement);
+    
+    // Afficher les prix et nombre de ventes pour maisons
+    prixMaisonEl.textContent = formatPrice(properties.prix_m2_maison);
+    ventesMaisonEl.textContent = formatVentes(properties.nb_ventes_maison);
+    
     sheet.classList.remove('hidden');
 }
-
 // Fermer le bottom sheet
 function closeBottomSheet() {
     const sheet = document.getElementById('bottom-sheet');
@@ -352,7 +363,27 @@ function closeBottomSheet() {
         state.popup.remove();
     }
 }
+// Formater le prix au m²
+function formatPrice(price) {
+    if (!price || price === 0 || price === null) {
+        return 'N/A';
+    }
+    return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(price);
+}
 
+// Formater le nombre de ventes
+function formatVentes(nbVentes) {
+    if (!nbVentes || nbVentes === 0 || nbVentes === null) {
+        return 'Aucune donnée';
+    }
+    const venteText = nbVentes === 1 ? 'vente' : 'ventes';
+    return `${nbVentes} ${venteText}`;
+}
 // Calculer le centroïde d'une géométrie avec Turf.js
 function calculateCentroid(geometry) {
     try {
