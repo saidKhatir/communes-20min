@@ -33,7 +33,7 @@ Ensuite, ces **trois polygones de temps d’accessibilité** ont été **compar�
 - Design **mobile-first** (optimisé iOS / Android)
 - Gestion des **safe-area** pour iPhone
 
-## 🚀 Démo
+##  Démo
 
 **[Voir la démo en ligne](https://saidkhatir.github.io/communes-20min/)**
 
