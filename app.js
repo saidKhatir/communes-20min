@@ -148,24 +148,24 @@ function initMap(geojsonData) {
             }
         });
         
-        // Layer highlight (sélection)
-        state.map.addLayer({
-            id: CONFIG.LAYER_IDS.HIGHLIGHT,
-            type: 'fill',
-            source: CONFIG.SOURCE_ID,
-            paint: {
-                'fill-color': '#FFD700',
-                'fill-opacity': 0.7
-            },
-            filter: ['==', 'ID', '']
-        });
+        // // Layer highlight (sélection)
+        // state.map.addLayer({
+        //     id: CONFIG.LAYER_IDS.HIGHLIGHT,
+        //     type: 'fill',
+        //     source: CONFIG.SOURCE_ID,
+        //     paint: {
+        //         'fill-color': '#FFD700',
+        //         'fill-opacity': 0.7
+        //     },
+        //     filter: ['==', 'ID', '']
+        // });
         
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.HIGHLIGHT + '-line',
             type: 'line',
             source: CONFIG.SOURCE_ID,
             paint: {
-                'line-color': '#FFD700',
+                'line-color': '#FFFFFF',
                 'line-width': 3,
                 'line-opacity': 1
             },
