@@ -134,7 +134,10 @@ function initMap(geojsonData) {
         bearing: 0,
         pitch: 0,
         dragRotate: false,
-        touchPitch: false
+        touchPitch: false,
+        dragRotate: false,      // Désactive la rotation avec le clic droit ou Ctrl+clic
+        touchZoomRotate: false, // Désactive la rotation à deux doigts sur mobile
+        pitchWithRotate: false
     });
     
     state.map.keyboard.disable();
@@ -291,6 +294,7 @@ function initBottomSheetDrag(sheet, handle) {
     
     const handleStart = (e) => {
         isDragging = true;
+        // Correction : On récupère la position selon le type d'événement
         startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
         sheet.style.transition = 'none';
     };
@@ -298,11 +302,13 @@ function initBottomSheetDrag(sheet, handle) {
     const handleMove = (e) => {
         if (!isDragging) return;
         
+        // Correction : On récupère la position selon le type d'événement
         const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
         const diff = currentY - startY;
         
         if (diff > 0) {
             currentTranslate = diff;
+            // On garde le centrage horizontal (X) et on applique la descente (Y)
             sheet.style.transform = `translateX(-50%) translateY(${diff}px)`;
         }
     };
@@ -313,24 +319,27 @@ function initBottomSheetDrag(sheet, handle) {
         
         sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
         
+        // Si on a glissé de plus de 100px vers le bas, on ferme
         if (currentTranslate > 100) {
             closeBottomSheet();
         } else {
+            // Sinon on remet la fenêtre en place
             sheet.style.transform = 'translateX(-50%) translateY(0)';
         }
-        
         currentTranslate = 0;
     };
     
+    // Événements Souris
     handle.addEventListener('mousedown', handleStart);
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleEnd);
     
+    // Événements Tactiles (Mobile)
     handle.addEventListener('touchstart', handleStart, { passive: true });
-    document.addEventListener('touchmove', handleMove, { passive: true });
+    // Note : On écoute sur document pour que le glissement continue même si le doigt sort de la poignée
+    document.addEventListener('touchmove', handleMove, { passive: false }); 
     document.addEventListener('touchend', handleEnd);
 }
-
 // Gérer la recherche avec Fuse.js
 function handleSearch(query) {
     const searchResults = document.getElementById('search-results');
@@ -385,13 +394,17 @@ function handleMapClick(e) {
     
     if (e.features && e.features.length > 0) {
         const feature = e.features[0];
-        const nom = feature.properties.NOM;
         
+        // SUPPRIMER OU COMMENTER CES LIGNES :
+        /*
+        const nom = feature.properties.NOM;
         state.popup
             .setLngLat(e.lngLat)
             .setHTML(`<strong>${nom}</strong>`)
             .addTo(state.map);
+        */
         
+        // GARDER CETTE LIGNE (elle ouvre la bottom sheet)
         selectFeature(feature);
     }
 }
@@ -628,6 +641,49 @@ function initTableEventListeners() {
         });
     });
 }
+
+function exportToCSV() {
+    // 1. Récupérer les données filtrées selon l'onglet actif
+    let dataToExport = tableState.sortedData;
+    const filter = tableState.currentFilter;
+
+    if (filter === '600') {
+        dataToExport = dataToExport.filter(c => c.time <= 600);
+    } else if (filter === '1200') {
+        dataToExport = dataToExport.filter(c => c.time > 600 && c.time <= 1200);
+    } else if (filter === '1800') {
+        dataToExport = dataToExport.filter(c => c.time > 1200);
+    }
+
+    // 2. Préparer les données pour le CSV (nettoyage des noms de colonnes)
+    const csvData = dataToExport.map(item => ({
+        "Commune": item.nom,
+        "Code INSEE": item.insee,
+        "Temps d'accès (minutes)": Math.round(item.time / 60)
+    }));
+
+    // 3. Utiliser PapaParse pour convertir en chaîne CSV
+    const csv = Papa.unparse(csvData, {
+        delimiter: ";", // Point-virgule pour une ouverture parfaite dans Excel France
+    });
+
+    // 4. Créer le téléchargement
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    const fileName = `communes_accessibilite_${filter}s.csv`;
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// À ajouter dans initTableEventListeners
+document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
 
 // Démarrer l'application
 if (document.readyState === 'loading') {

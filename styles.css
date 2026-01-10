@@ -565,17 +565,18 @@ body {
     background-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Tableau */
+/* Assure que le conteneur permet le sticky */
 .table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    position: relative;
+    overflow-y: auto;
+    max-height: 100%; /* Important pour que le sticky sache par rapport à quoi se fixer */
 }
 
-.communes-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 15px;
+.communes-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 100; /* Plus élevé pour passer au-dessus des badges */
+    background-color: var(--surface); /* Fond opaque obligatoire sinon on voit les lignes dessous */
+    border-bottom: 2px solid var(--border);
 }
 
 .communes-table thead {
@@ -665,4 +666,30 @@ body {
     padding: 40px 20px;
     color: var(--text-secondary);
     font-size: 15px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.export-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.export-btn:active {
+    background-color: #2fb350;
+    transform: scale(0.95);
 }
