@@ -136,7 +136,7 @@ function initMap(geojsonData) {
         dragRotate: false,
         touchPitch: false,
         dragRotate: false,      // Désactive la rotation avec le clic droit ou Ctrl+clic
-        touchZoomRotate: false, // Désactive la rotation à deux doigts sur mobile
+        touchZoomRotate: true, // Désactive la rotation à deux doigts sur mobile
         pitchWithRotate: false
     });
     
