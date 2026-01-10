@@ -475,26 +475,6 @@ body {
     color: var(--text-primary);
     margin: 0;
 }
-
-.close-table-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--background);
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: var(--text-primary);
-    transition: background-color 0.2s;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.close-table-btn:active {
-    background-color: var(--border);
-}
-
 /* Contenu du panneau */
 .table-panel-content {
     flex: 1;
