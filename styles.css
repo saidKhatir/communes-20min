@@ -221,8 +221,8 @@ body {
     z-index: 2000;
     padding-bottom: var(--safe-bottom);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    touch-action: pan-y;
-    user-select: none;
+    touch-action: auto; /* Changez pan-y par auto */
+    user-select: auto;  /* Changez none par auto pour permettre la sélection de texte */
 }
 
 .bottom-sheet:not(.hidden) {
@@ -234,6 +234,7 @@ body {
 }
 
 .bottom-sheet-handle {
+    display: none; /* Masque la barre de drag */
     width: 36px;
     height: 5px;
     background-color: var(--border);

@@ -272,7 +272,6 @@ function initEventListeners() {
     
     closeButton.addEventListener('click', closeBottomSheet);
     helpBtn.addEventListener('click', showHelpInfo);
-    initBottomSheetDrag(bottomSheet, handle);
 }
 
 // Afficher l'info d'aide
@@ -286,60 +285,6 @@ function showHelpInfo() {
     alert(message);
 }
 
-// Initialiser le drag du bottom sheet
-function initBottomSheetDrag(sheet, handle) {
-    let startY = 0;
-    let currentTranslate = 0;
-    let isDragging = false;
-    
-    const handleStart = (e) => {
-        isDragging = true;
-        // Correction : On récupère la position selon le type d'événement
-        startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-        sheet.style.transition = 'none';
-    };
-    
-    const handleMove = (e) => {
-        if (!isDragging) return;
-        
-        // Correction : On récupère la position selon le type d'événement
-        const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-        const diff = currentY - startY;
-        
-        if (diff > 0) {
-            currentTranslate = diff;
-            // On garde le centrage horizontal (X) et on applique la descente (Y)
-            sheet.style.transform = `translateX(-50%) translateY(${diff}px)`;
-        }
-    };
-    
-    const handleEnd = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        
-        sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-        
-        // Si on a glissé de plus de 100px vers le bas, on ferme
-        if (currentTranslate > 100) {
-            closeBottomSheet();
-        } else {
-            // Sinon on remet la fenêtre en place
-            sheet.style.transform = 'translateX(-50%) translateY(0)';
-        }
-        currentTranslate = 0;
-    };
-    
-    // Événements Souris
-    handle.addEventListener('mousedown', handleStart);
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleEnd);
-    
-    // Événements Tactiles (Mobile)
-    handle.addEventListener('touchstart', handleStart, { passive: true });
-    // Note : On écoute sur document pour que le glissement continue même si le doigt sort de la poignée
-    document.addEventListener('touchmove', handleMove, { passive: false }); 
-    document.addEventListener('touchend', handleEnd);
-}
 // Gérer la recherche avec Fuse.js
 function handleSearch(query) {
     const searchResults = document.getElementById('search-results');
