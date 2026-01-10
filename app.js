@@ -240,7 +240,8 @@ function buildSearchIndex() {
         minMatchCharLength: 1,
         shouldSort: true
     };
-
+    
+    state.fuse = new Fuse(state.searchIndex, options);
 }
 
 // Initialiser les événements UI
@@ -273,7 +274,7 @@ function initEventListeners() {
 
 // Afficher l'info d'aide
 function showHelpInfo() {
-    const message = "Cette carte affiche les communes accessibles en voiture en 30 minutes maximum depuis un lieu de travail dans le nord-est de Nantes, en conditions de trafic fluide.\n\n" +
+    const message = "Cette carte affiche les communes accessibles en voiture en 30 minutes maximum depuis un lieu de travail situé dans le nord-est de Nantes, en conditions de trafic fluide.\n\n" +
                    "• Vert : accessible en 10 min ou moins\n" +
                    "• Orange : accessible entre 10 et 20 min\n" +
                    "• Rouge : accessible entre 20 et 30 min\n\n" +
@@ -337,6 +338,22 @@ function handleSearch(query) {
     
     if (query.length < 1) {
         hideSearchResults();
+        return;
+    }
+    
+    // Vérifier si Fuse.js est initialisé
+    if (!state.fuse) {
+        searchResults.innerHTML = '<div class="search-no-results">Erreur de recherche</div>';
+        searchResults.classList.remove('hidden');
+        return;
+    }
+    
+    const results = state.fuse.search(query).slice(0, 10);
+
+    
+    if (results.length === 0) {
+        searchResults.innerHTML = '<div class="search-no-results">Aucune commune trouvée</div>';
+        searchResults.classList.remove('hidden');
         return;
     }
     
