@@ -98,26 +98,27 @@
     <div class="bottom-sheet-content">
         <h2 id="feature-name" class="feature-name"></h2>
         <div class="feature-details">
-            <div class="detail-row accessibility-status">
-                <span class="detail-label">Temps d'accès :</span>
+            <!-- Temps d'accès -->
+            <div class="detail-row">
+                <span class="detail-label">Temps d'accès</span>
                 <span id="feature-time" class="detail-value status-time"></span>
             </div>
             
-            <!-- Prix appartement avec min/max -->
+            <!-- Prix appartement -->
             <div class="detail-row">
-                <span class="detail-label">Prix appt./m² :</span>
+                <span class="detail-label">Appt. /m²</span>
                 <div class="detail-value-group">
-                    <span id="feature-prix-appt" class="detail-value detail-price"></span>
+                    <span id="feature-prix-appt" class="detail-price"></span>
                     <span id="feature-minmax-appt" class="detail-minmax"></span>
                     <span id="feature-ventes-appt" class="detail-subtitle"></span>
                 </div>
             </div>
             
-            <!-- Prix maison avec min/max -->
+            <!-- Prix maison -->
             <div class="detail-row">
-                <span class="detail-label">Prix maison/m² :</span>
+                <span class="detail-label">Maison /m²</span>
                 <div class="detail-value-group">
-                    <span id="feature-prix-maison" class="detail-value detail-price"></span>
+                    <span id="feature-prix-maison" class="detail-price"></span>
                     <span id="feature-minmax-maison" class="detail-minmax"></span>
                     <span id="feature-ventes-maison" class="detail-subtitle"></span>
                 </div>
@@ -126,7 +127,6 @@
         <button id="close-sheet" class="close-button">Fermer</button>
     </div>
 </div>
-
     <!-- Message d'erreur -->
     <div id="error-message" class="error-message hidden">
         <p id="error-text"></p>

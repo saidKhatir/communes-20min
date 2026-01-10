@@ -84,7 +84,7 @@ function formatMinMax(minMaxStr) {
         const [min, max] = minMaxStr.split(';');
         const minPrice = formatPrice(parseFloat(min));
         const maxPrice = formatPrice(parseFloat(max));
-        return `${minPrice} - ${maxPrice}`;
+        return `${minPrice} à ${maxPrice}`;
     } else {
         // Valeur unique (pas de fourchette)
         return '';

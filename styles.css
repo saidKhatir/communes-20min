@@ -144,6 +144,7 @@ body {
     padding-bottom: var(--safe-bottom);
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 35vh; /* Limiter la hauteur à 35% de l'écran */
 }
 
 .bottom-sheet:not(.hidden) {
@@ -159,59 +160,75 @@ body {
     height: 5px;
     background-color: var(--border);
     border-radius: 3px;
-    margin: 12px auto 16px auto;
+    margin: 8px auto 12px auto; /* Réduire l'espacement */
 }
 
 .bottom-sheet-content {
-    padding: 0 20px 20px 20px;
+    padding: 0 20px 16px 20px; /* Réduire le padding */
+    overflow-y: auto; /* Permettre le scroll si contenu dépasse */
+    max-height: calc(35vh - 40px); /* Hauteur max - handle et padding */
 }
-
 .feature-name {
-    font-size: 24px;
+    font-size: 20px; /* Réduire de 24px à 20px */
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 16px;
+    margin-bottom: 12px; /* Réduire de 16px à 12px */
     letter-spacing: -0.5px;
 }
 
 .feature-details {
-    margin-bottom: 20px;
+    margin-bottom: 16px; /* Réduire de 20px à 16px */
 }
+
 
 .detail-price {
     font-weight: 600;
     color: var(--primary-color);
-    font-size: 18px;
+    font-size: 15px; /* Réduire */
 }
-
+.detail-value {
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right; /* Aligner à droite */
+}
 .detail-value-group {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    gap: 2px; /* Espacement entre les éléments */
 }
 
 .detail-minmax {
-    font-size: 13px;
+    font-size: 12px; /* Réduire de 13px à 12px */
     color: var(--text-secondary);
-    margin-top: 2px;
     font-style: italic;
+    line-height: 1.3;
+}
+.detail-label {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 14px; /* Plus petit pour les labels */
+    flex-shrink: 0; /* Empêcher le label de rétrécir */
+    margin-right: 12px;
 }
 
 .detail-subtitle {
-    font-size: 12px;
+    font-size: 11px; /* Réduire de 12px à 11px */
     color: var(--text-secondary);
-    margin-top: 4px;
+    line-height: 1.3;
 }
-
 .detail-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 12px 0;
+    align-items: center; /* Centrer verticalement */
+    padding: 10px 0; /* Réduire de 12px à 10px */
     border-bottom: 1px solid var(--border);
-    font-size: 17px;
+    font-size: 15px; /* Réduire de 17px à 15px */
+    min-height: 44px; /* Hauteur minimum pour les zones tactiles */
 }
-
+.detail-row:last-child {
+    border-bottom: none;
+}
 /* Styles pour le tableau */
 .commune-price-cell {
     font-size: 14px;
@@ -234,7 +251,11 @@ body {
     color: var(--text-secondary);
     margin-top: 2px;
 }
-
+.accessibility-status .status-time {
+    font-weight: 700;
+    font-size: 16px; /* Réduire de 18px à 16px */
+    color: var(--primary-color);
+}
 .accessibility-status .status-yes {
     color: var(--success-color);
     font-weight: 600;
@@ -242,12 +263,12 @@ body {
 
 .close-button {
     width: 100%;
-    height: 50px;
+    height: 44px; /* Réduire de 50px à 44px */
     border: none;
-    border-radius: 12px;
+    border-radius: 10px; /* Réduire de 12px à 10px */
     background-color: var(--primary-color);
     color: white;
-    font-size: 17px;
+    font-size: 16px; /* Réduire de 17px à 16px */
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s;
@@ -287,15 +308,14 @@ body {
     -webkit-overflow-scrolling: touch;
 }
 
-/* Responsive pour tablettes */
+/* Responsive tablette */
 @media (min-width: 768px) {
-    .header {
-        padding-left: 24px;
-        padding-right: 24px;
+    .bottom-sheet {
+        max-height: 40vh; /* Un peu plus sur tablette */
     }
     
     .bottom-sheet-content {
-        padding: 0 24px 24px 24px;
+        max-height: calc(40vh - 40px);
         max-width: 500px;
         margin: 0 auto;
     }
