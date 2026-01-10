@@ -541,7 +541,7 @@ function renderTable(filterTime) {
     
     // Générer le HTML
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Aucune commune trouvée</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Aucune commune trouvée</td></tr>';
         return;
     }
     
@@ -550,29 +550,11 @@ function renderTable(filterTime) {
         const timeClass = commune.time <= 600 ? 'time-600' : 
                          commune.time <= 1200 ? 'time-1200' : 'time-1800';
         
-        // Récupérer les données de la feature
-        const feature = state.features.find(f => f.properties.ID === commune.id);
-        const prixAppt = feature ? formatPrice(feature.properties.prix_m2_appartement_moy) : 'N/A';
-        const prixMaison = feature ? formatPrice(feature.properties.prix_m2_maison_moy) : 'N/A';
-        const minmaxAppt = feature ? formatMinMax(feature.properties.min_max_appartement) : '';
-        const minmaxMaison = feature ? formatMinMax(feature.properties.min_max_maison) : '';
-        const ventesAppt = feature ? feature.properties.nb_ventes_appartement : 0;
-        const ventesMaison = feature ? feature.properties.nb_ventes_maison : 0;
-        
         return `
             <tr data-id="${commune.id}">
                 <td class="commune-name">${commune.nom}</td>
+                <td class="commune-insee">${commune.insee}</td>
                 <td><span class="time-badge ${timeClass}">${minutes} min</span></td>
-                <td class="commune-price-cell">
-                    <div class="price-value">${prixAppt}</div>
-                    ${minmaxAppt ? `<div class="price-minmax">${minmaxAppt}</div>` : ''}
-                    ${ventesAppt > 0 ? `<div class="price-subtitle">${ventesAppt} vente(s)</div>` : ''}
-                </td>
-                <td class="commune-price-cell">
-                    <div class="price-value">${prixMaison}</div>
-                    ${minmaxMaison ? `<div class="price-minmax">${minmaxMaison}</div>` : ''}
-                    ${ventesMaison > 0 ? `<div class="price-subtitle">${ventesMaison} vente(s)</div>` : ''}
-                </td>
             </tr>
         `;
     }).join('');
