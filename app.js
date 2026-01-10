@@ -1,9 +1,9 @@
 // Configuration
 const CONFIG = {
-    GEOJSON_PATH: './accessibility_work_prix_m2.geojson',
+    GEOJSON_PATH: './accessibility_work_prix_m2_moyenne.geojson',
     MAP_STYLE: 'https://tiles.openfreemap.org/styles/bright',
-    INITIAL_ZOOM: 8,
-    SELECTED_ZOOM: 10.5,
+    INITIAL_ZOOM: 9,
+    SELECTED_ZOOM: 12,
     LAYER_IDS: {
         FILL: 'accessibility-fill',
         LINE: 'accessibility-line',
@@ -46,6 +46,48 @@ function getTimeConfig(seconds) {
         return CONFIG.TIME_CONFIG[1200];
     } else {
         return CONFIG.TIME_CONFIG[1800];
+    }
+}
+
+// Formater le prix au m²
+function formatPrice(price) {
+    if (!price || price === 0 || price === null || isNaN(price)) {
+        return 'N/A';
+    }
+    // Convertir en nombre si c'est une chaîne
+    const priceNum = typeof price === 'string' ? parseFloat(price) : price;
+    return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(priceNum);
+}
+
+// Formater le nombre de ventes
+function formatVentes(nbVentes) {
+    if (!nbVentes || nbVentes === 0 || nbVentes === null) {
+        return 'Aucune donnée';
+    }
+    const venteText = nbVentes === 1 ? 'vente' : 'ventes';
+    return `${nbVentes} ${venteText}`;
+}
+
+// Formater les min/max (format: "1127;4577" ou "2500")
+function formatMinMax(minMaxStr) {
+    if (!minMaxStr || minMaxStr === '') {
+        return '';
+    }
+    
+    // Si contient un point-virgule, c'est min;max
+    if (minMaxStr.includes(';')) {
+        const [min, max] = minMaxStr.split(';');
+        const minPrice = formatPrice(parseFloat(min));
+        const maxPrice = formatPrice(parseFloat(max));
+        return `${minPrice} - ${maxPrice}`;
+    } else {
+        // Valeur unique (pas de fourchette)
+        return '';
     }
 }
 
@@ -97,7 +139,7 @@ function initMap(geojsonData) {
     state.map = new maplibregl.Map({
         container: 'map',
         style: CONFIG.MAP_STYLE,
-        center: [-1.553621, 47.218371],  // Nantes (longitude, latitude)
+        center: [-1.553621, 47.218371],  // Nantes
         zoom: CONFIG.INITIAL_ZOOM,
         attributionControl: false
     });
@@ -123,8 +165,8 @@ function initMap(geojsonData) {
             paint: {
                 'fill-color': [
                     'case',
-                    ['<=', ['get', 'cost_level_min'], 600], CONFIG.TIME_CONFIG[600].color,
-                    ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
                 'fill-opacity': 0.6
@@ -139,8 +181,8 @@ function initMap(geojsonData) {
             paint: {
                 'line-color': [
                     'case',
-                    ['<=', ['get', 'cost_level_min'], 600], CONFIG.TIME_CONFIG[600].color,
-                    ['<=', ['get', 'cost_level_min'], 1200], CONFIG.TIME_CONFIG[1200].color,
+                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
                 'line-width': 1.5,
@@ -329,25 +371,30 @@ function showBottomSheet(properties) {
     const timeEl = document.getElementById('feature-time');
     const prixApptEl = document.getElementById('feature-prix-appt');
     const prixMaisonEl = document.getElementById('feature-prix-maison');
+    const minmaxApptEl = document.getElementById('feature-minmax-appt');
+    const minmaxMaisonEl = document.getElementById('feature-minmax-maison');
     const ventesApptEl = document.getElementById('feature-ventes-appt');
     const ventesMaisonEl = document.getElementById('feature-ventes-maison');
     
     nameEl.textContent = properties.NOM;
     
     // Afficher le temps en minutes
-    const minutes = secondsToMinutes(properties.cost_level_min);
+    const minutes = secondsToMinutes(properties.cost_level);
     timeEl.textContent = `${minutes} min`;
     
-    // Afficher les prix et nombre de ventes pour appartements
-    prixApptEl.textContent = formatPrice(properties.prix_m2_appartement);
+    // Afficher les prix moyens pour appartements
+    prixApptEl.textContent = formatPrice(properties.prix_m2_appartement_moy);
+    minmaxApptEl.textContent = formatMinMax(properties.min_max_appartement);
     ventesApptEl.textContent = formatVentes(properties.nb_ventes_appartement);
     
-    // Afficher les prix et nombre de ventes pour maisons
-    prixMaisonEl.textContent = formatPrice(properties.prix_m2_maison);
+    // Afficher les prix moyens pour maisons
+    prixMaisonEl.textContent = formatPrice(properties.prix_m2_maison_moy);
+    minmaxMaisonEl.textContent = formatMinMax(properties.min_max_maison);
     ventesMaisonEl.textContent = formatVentes(properties.nb_ventes_maison);
     
     sheet.classList.remove('hidden');
 }
+
 // Fermer le bottom sheet
 function closeBottomSheet() {
     const sheet = document.getElementById('bottom-sheet');
@@ -363,27 +410,7 @@ function closeBottomSheet() {
         state.popup.remove();
     }
 }
-// Formater le prix au m²
-function formatPrice(price) {
-    if (!price || price === 0 || price === null) {
-        return 'N/A';
-    }
-    return new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(price);
-}
 
-// Formater le nombre de ventes
-function formatVentes(nbVentes) {
-    if (!nbVentes || nbVentes === 0 || nbVentes === null) {
-        return 'Aucune donnée';
-    }
-    const venteText = nbVentes === 1 ? 'vente' : 'ventes';
-    return `${nbVentes} ${venteText}`;
-}
 // Calculer le centroïde d'une géométrie avec Turf.js
 function calculateCentroid(geometry) {
     try {
@@ -468,7 +495,7 @@ function initTable() {
             id: f.properties.ID,
             nom: f.properties.NOM,
             insee: f.properties.INSEE_COM || 'N/A',
-            time: f.properties.cost_level_min,
+            time: f.properties.cost_level,
             geometry: f.geometry
         }))
         .sort((a, b) => {
@@ -514,7 +541,7 @@ function renderTable(filterTime) {
     
     // Générer le HTML
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Aucune commune trouvée</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Aucune commune trouvée</td></tr>';
         return;
     }
     
@@ -523,11 +550,29 @@ function renderTable(filterTime) {
         const timeClass = commune.time <= 600 ? 'time-600' : 
                          commune.time <= 1200 ? 'time-1200' : 'time-1800';
         
+        // Récupérer les données de la feature
+        const feature = state.features.find(f => f.properties.ID === commune.id);
+        const prixAppt = feature ? formatPrice(feature.properties.prix_m2_appartement_moy) : 'N/A';
+        const prixMaison = feature ? formatPrice(feature.properties.prix_m2_maison_moy) : 'N/A';
+        const minmaxAppt = feature ? formatMinMax(feature.properties.min_max_appartement) : '';
+        const minmaxMaison = feature ? formatMinMax(feature.properties.min_max_maison) : '';
+        const ventesAppt = feature ? feature.properties.nb_ventes_appartement : 0;
+        const ventesMaison = feature ? feature.properties.nb_ventes_maison : 0;
+        
         return `
             <tr data-id="${commune.id}">
                 <td class="commune-name">${commune.nom}</td>
-                <td class="commune-insee">${commune.insee}</td>
                 <td><span class="time-badge ${timeClass}">${minutes} min</span></td>
+                <td class="commune-price-cell">
+                    <div class="price-value">${prixAppt}</div>
+                    ${minmaxAppt ? `<div class="price-minmax">${minmaxAppt}</div>` : ''}
+                    ${ventesAppt > 0 ? `<div class="price-subtitle">${ventesAppt} vente(s)</div>` : ''}
+                </td>
+                <td class="commune-price-cell">
+                    <div class="price-value">${prixMaison}</div>
+                    ${minmaxMaison ? `<div class="price-minmax">${minmaxMaison}</div>` : ''}
+                    ${ventesMaison > 0 ? `<div class="price-subtitle">${ventesMaison} vente(s)</div>` : ''}
+                </td>
             </tr>
         `;
     }).join('');

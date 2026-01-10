@@ -23,63 +23,95 @@ def process_dvf_data():
     print("✅ Lecture de dvf.csv.gz...")
     df = pd.read_csv(PATH_DVF, sep=',', low_memory=False)
 
-    # --- ÉTAPE 3 : Filtrage ---
-    print("✅ Filtrage (Communes + Type Local + Nature Mutation)...")
+    # --- ÉTAPE 3 : Filtrage initial ---
+    print("✅ Filtrage initial (Communes + Type Local)...")
     df['code_commune'] = df['code_commune'].astype(str).str.zfill(5)
     
-    # Seules les ventes et VEFA sont conservées [cite: 7, 76]
     natures_valides = ["Vente", "Vente en l'état futur d'achèvement"]
-
     mask = (
         (df['code_commune'].isin(list_insee)) &
         (df['nature_mutation'].isin(natures_valides)) &
         (df['valeur_fonciere'] > 0) &
         (df['surface_reelle_bati'] > 0) &
-        (df['code_type_local'].isin([1, 2])) # 1: Maison, 2: Appartement [cite: 63]
+        (df['code_type_local'].isin([1, 2])) 
     )
     df_filtered = df[mask].copy()
 
-    # --- ÉTAPE 4 : Agrégation par mutation ---
-    # On regroupe par mutation pour sommer les surfaces de chaque local [cite: 40, 52]
-    # et ne prendre qu'une seule fois la valeur foncière répétée [cite: 42]
+    # --- ÉTAPE 4 : Exclusion des ventes en bloc (Multi-lignes à prix identique) ---
+    print("✅ Exclusion des ventes en bloc (multi-lots)...")
+    check_bloc = df_filtered.groupby('id_mutation').agg({
+        'valeur_fonciere': ['count', 'nunique']
+    })
+    check_bloc.columns = ['nb_lignes', 'nb_prix_uniques']
+    ids_en_bloc = check_bloc[(check_bloc['nb_lignes'] > 1) & (check_bloc['nb_prix_uniques'] == 1)].index
+    df_filtered = df_filtered[~df_filtered['id_mutation'].isin(ids_en_bloc)]
+
+    # --- ÉTAPE 5 : Agrégation par mutation ---
     print("✅ Agrégation par mutation...")
     df_agg = df_filtered.groupby(['id_mutation', 'code_commune', 'code_type_local']).agg({
         'valeur_fonciere': 'first', 
         'surface_reelle_bati': 'sum'
     }).reset_index()
-
-    # --- ÉTAPE 5 : Calcul du prix au m² ---
     df_agg['prix_m2'] = df_agg['valeur_fonciere'] / df_agg['surface_reelle_bati']
-    
-    # --- ÉTAPE 6 : Statistiques communales (MÉDIANE + COMPTAGE) ---
-    print("✅ Calcul des médianes et volumes de ventes par commune...")
-    
-    # Calcul de la médiane
-    medianes = df_agg.groupby(['code_commune', 'code_type_local'])['prix_m2'].median().unstack()
-    medianes = medianes.rename(columns={1: 'prix_m2_maison', 2: 'prix_m2_appartement'})
-    
-    # Calcul du nombre de ventes (id_mutation uniques)
-    comptage = df_agg.groupby(['code_commune', 'code_type_local'])['id_mutation'].count().unstack()
-    comptage = comptage.rename(columns={1: 'nb_ventes_maison', 2: 'nb_ventes_appartement'})
-    
-    # Fusion des statistiques
-    stats = pd.concat([medianes, comptage], axis=1).reset_index()
 
-    # --- ÉTAPE 7 : Jointure ---
-    print("✅ Jointure avec le GeoJSON...")
-    gdf_final = gdf.merge(stats, left_on='INSEE_COM', right_on='code_commune', how='left')
+    # --- ÉTAPE 6 : Filtrage des 2.5% extrêmes (95% centraux) ---
+    print("✅ Application de la fourchette (95% centraux)...")
+    def filter_extremes(group):
+        if len(group) < 5:
+            return group
+        low = group['prix_m2'].quantile(0.025)
+        high = group['prix_m2'].quantile(0.975)
+        return group[(group['prix_m2'] >= low) & (group['prix_m2'] <= high)]
+
+    df_cleaned = df_agg.groupby(['code_commune', 'code_type_local'], group_keys=False).apply(filter_extremes)
+
+    # --- ÉTAPE 7 : Statistiques finales ---
+    print("✅ Calcul des statistiques et formatage min;max...")
+    stats = df_cleaned.groupby(['code_commune', 'code_type_local']).agg({
+        'prix_m2': ['mean', 'min', 'max'],
+        'id_mutation': 'count'
+    }).reset_index()
+
+    stats.columns = ['code_commune', 'code_type_local', 'prix_m2_moy', 'pm2_min', 'pm2_max', 'nb_ventes']
+
+    # Logique pour la chaîne min_max : 
+    # Si min == max (une seule vente ou prix identiques), on ne met qu'une valeur.
+    def format_min_max(row):
+        p_min = int(round(row['pm2_min'], 0))
+        p_max = int(round(row['pm2_max'], 0))
+        if p_min == p_max:
+            return str(p_min)
+        return f"{p_min};{p_max}"
+
+    stats['min_max_str'] = stats.apply(format_min_max, axis=1)
+
+    # Pivotage
+    stats_pivot = stats.pivot(index='code_commune', columns='code_type_local', values=['prix_m2_moy', 'nb_ventes', 'min_max_str'])
+    stats_pivot.columns = [
+        'prix_m2_maison_moy', 'prix_m2_appartement_moy',
+        'nb_ventes_maison', 'nb_ventes_appartement',
+        'min_max_maison', 'min_max_appartement'
+    ]
+    
+    # --- ÉTAPE 8 : Jointure et Arrondis finaux ---
+    print("✅ Jointure et arrondis à deux décimales...")
+    gdf_final = gdf.merge(stats_pivot.reset_index(), left_on='INSEE_COM', right_on='code_commune', how='left')
     
     if 'code_commune' in gdf_final.columns:
         gdf_final = gdf_final.drop(columns=['code_commune'])
 
-    # --- ÉTAPE 8 : Export ---
-    print(f"✅ Sauvegarde vers {OUTPUT_GEOJSON}...")
-    # Remplacement des NaN par 0 pour les colonnes de comptage
+    # Arrondi strict à deux décimales pour les colonnes numériques de prix moyen
+    gdf_final['prix_m2_maison_moy'] = gdf_final['prix_m2_maison_moy'].round(2)
+    gdf_final['prix_m2_appartement_moy'] = gdf_final['prix_m2_appartement_moy'].round(2)
+    
+    # Remplissage des ventes (NaN -> 0)
     cols_ventes = ['nb_ventes_maison', 'nb_ventes_appartement']
     gdf_final[cols_ventes] = gdf_final[cols_ventes].fillna(0).astype(int)
-    
+
+    # --- ÉTAPE 9 : Export ---
+    print(f"✅ Sauvegarde vers {OUTPUT_GEOJSON}...")
     gdf_final.to_file(OUTPUT_GEOJSON, driver='GeoJSON')
-    print(f"🚀 Terminé ! Colonnes ajoutées : prix_m2_... et nb_ventes_...")
+    print("🚀 Terminé ! Formatage min;max optimisé et arrondis à 2 décimales appliqués.")
 
 if __name__ == "__main__":
     process_dvf_data()
