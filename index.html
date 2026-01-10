@@ -8,19 +8,32 @@
     <title>Accessibilité 20 Minutes</title>
     
      <!-- MapLibre GL JS -->
-    
      <script src="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.js"></script>
      <link href="https://unpkg.com/maplibre-gl@^5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
     
      <!-- Turf.js -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+    
+    <!-- Fuse.js pour recherche floue -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+    
     <!-- Styles locaux -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <!-- Header avec recherche -->
-    <header class="header">
-        <h1 class="header-title">Communes accessibles en voiture en 30 minutes depuis le lieu de travail, en conditions de trafic fluide.</h1>
+        <header class="header">
+        <div class="header-top">
+            <h1 class="header-title">Où habiter à 30 min du travail ?</h1>
+            <button class="help-btn" id="help-btn" title="Informations">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </button>
+        </div>
+        <p class="header-subtitle">Communes accessibles en voiture depuis le lieu de travail, en conditions de trafic fluide</p>
         <div class="search-container">
             <input 
                 type="text" 
@@ -92,10 +105,18 @@
         </div>
     </div>
 
-<!-- Bottom Sheet -->
+<!-- MODIFICATION : Bottom Sheet avec croix à la place du bouton -->
 <div id="bottom-sheet" class="bottom-sheet hidden">
     <div class="bottom-sheet-handle"></div>
     <div class="bottom-sheet-content">
+        <!-- Bouton fermer en croix en haut à droite -->
+        <button id="close-sheet" class="close-sheet-x" aria-label="Fermer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+        
         <h2 id="feature-name" class="feature-name"></h2>
         <div class="feature-details">
             <!-- Temps d'accès -->
@@ -124,9 +145,9 @@
                 </div>
             </div>
         </div>
-        <button id="close-sheet" class="close-button">Fermer</button>
     </div>
 </div>
+
     <!-- Message d'erreur -->
     <div id="error-message" class="error-message hidden">
         <p id="error-text"></p>

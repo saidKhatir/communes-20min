@@ -2,7 +2,7 @@
 const CONFIG = {
     GEOJSON_PATH: './accessibility_work_prix_m2_moyenne.geojson',
     MAP_STYLE: 'https://tiles.openfreemap.org/styles/bright',
-    INITIAL_ZOOM: 9,
+    INITIAL_ZOOM: 8,
     SELECTED_ZOOM: 12,
     LAYER_IDS: {
         FILL: 'accessibility-fill',
@@ -10,11 +10,10 @@ const CONFIG = {
         HIGHLIGHT: 'accessibility-highlight'
     },
     SOURCE_ID: 'accessibility-data',
-    // Configuration des temps et couleurs
     TIME_CONFIG: {
-        600: { color: '#34C759', label: '10 min' },      // Vert
-        1200: { color: '#FF9500', label: '20 min' },     // Orange
-        1800: { color: '#FF3B30', label: '30 min' }      // Rouge
+        600: { color: '#34C759', label: '10 min' },
+        1200: { color: '#FF9500', label: '20 min' },
+        1800: { color: '#FF3B30', label: '30 min' }
     }
 };
 
@@ -24,7 +23,8 @@ const state = {
     features: [],
     selectedFeatureId: null,
     searchIndex: [],
-    popup: null
+    popup: null,
+    fuse: null
 };
 
 // État du tableau
@@ -54,7 +54,6 @@ function formatPrice(price) {
     if (!price || price === 0 || price === null || isNaN(price)) {
         return 'N/A';
     }
-    // Convertir en nombre si c'est une chaîne
     const priceNum = typeof price === 'string' ? parseFloat(price) : price;
     return new Intl.NumberFormat('fr-FR', {
         style: 'currency',
@@ -73,20 +72,18 @@ function formatVentes(nbVentes) {
     return `${nbVentes} ${venteText}`;
 }
 
-// Formater les min/max (format: "1127;4577" ou "2500")
+// Formater les min/max
 function formatMinMax(minMaxStr) {
     if (!minMaxStr || minMaxStr === '') {
         return '';
     }
     
-    // Si contient un point-virgule, c'est min;max
     if (minMaxStr.includes(';')) {
         const [min, max] = minMaxStr.split(';');
         const minPrice = formatPrice(parseFloat(min));
         const maxPrice = formatPrice(parseFloat(max));
         return `${minPrice} à ${maxPrice}`;
     } else {
-        // Valeur unique (pas de fourchette)
         return '';
     }
 }
@@ -94,20 +91,12 @@ function formatMinMax(minMaxStr) {
 // Initialisation de l'application
 async function init() {
     try {
-        // Charger les données GeoJSON
         const data = await loadGeoJSON();
         state.features = data.features;
         
-        // Initialiser la carte
         initMap(data);
-        
-        // Construire l'index de recherche
         buildSearchIndex();
-        
-        // Initialiser les événements
         initEventListeners();
-        
-        // Initialiser le tableau
         initTable();
         initTableEventListeners();
         
@@ -139,10 +128,18 @@ function initMap(geojsonData) {
     state.map = new maplibregl.Map({
         container: 'map',
         style: CONFIG.MAP_STYLE,
-        center: [-1.553621, 47.218371],  // Nantes
+        center: [-1.553621, 47.218371],
         zoom: CONFIG.INITIAL_ZOOM,
-        attributionControl: false
+        attributionControl: false,
+        bearing: 0,
+        pitch: 0,
+        dragRotate: false,
+        touchPitch: false
     });
+    
+    state.map.keyboard.disable();
+    state.map.keyboard.enable();
+    state.map.keyboard.disableRotation();
 
     state.popup = new maplibregl.Popup({
         closeButton: false,
@@ -151,13 +148,11 @@ function initMap(geojsonData) {
     });
     
     state.map.on('load', () => {
-        // Ajouter la source
         state.map.addSource(CONFIG.SOURCE_ID, {
             type: 'geojson',
             data: geojsonData
         });
         
-        // Layer fill (polygones) avec couleurs selon cost_level
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.FILL,
             type: 'fill',
@@ -173,7 +168,6 @@ function initMap(geojsonData) {
             }
         });
         
-        // Layer line (contours) avec couleurs selon cost_level
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.LINE,
             type: 'line',
@@ -190,7 +184,6 @@ function initMap(geojsonData) {
             }
         });
         
-        // Layer highlight (sélection)
         state.map.addLayer({
             id: CONFIG.LAYER_IDS.HIGHLIGHT,
             type: 'fill',
@@ -214,11 +207,9 @@ function initMap(geojsonData) {
             filter: ['==', 'ID', '']
         });
         
-        // Événements de clic sur la carte
         state.map.on('click', CONFIG.LAYER_IDS.FILL, handleMapClick);
         state.map.on('click', handleMapBackgroundClick);
         
-        // Curseur pointer sur les polygones
         state.map.on('mouseenter', CONFIG.LAYER_IDS.FILL, () => {
             state.map.getCanvas().style.cursor = 'pointer';
         });
@@ -228,14 +219,28 @@ function initMap(geojsonData) {
     });
 }
 
-// Construire l'index de recherche
+// Fonction pour normaliser les chaînes (enlever les accents)
+function normalizeString(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+// Construire l'index de recherche avec Fuse.js
 function buildSearchIndex() {
     state.searchIndex = state.features.map(feature => ({
         id: feature.properties.ID,
         nom: feature.properties.NOM,
-        nomLower: feature.properties.NOM.toLowerCase(),
+        nomNormalized: normalizeString(feature.properties.NOM), // Version sans accents
         geometry: feature.geometry
     }));
+    
+    const options = {
+        keys: ['nom', 'nomNormalized'], // Recherche sur les deux versions
+        threshold: 0.3,
+        ignoreLocation: true,
+        minMatchCharLength: 1,
+        shouldSort: true
+    };
+
 }
 
 // Initialiser les événements UI
@@ -243,8 +248,10 @@ function initEventListeners() {
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
     const closeButton = document.getElementById('close-sheet');
+    const helpBtn = document.getElementById('help-btn');
+    const bottomSheet = document.getElementById('bottom-sheet');
+    const handle = bottomSheet.querySelector('.bottom-sheet-handle');
     
-    // Recherche avec debounce
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
@@ -253,42 +260,91 @@ function initEventListeners() {
         }, 200);
     });
     
-    // Fermer les résultats si clic ailleurs
     document.addEventListener('click', (e) => {
         if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
             hideSearchResults();
         }
     });
     
-    // Bouton fermer
     closeButton.addEventListener('click', closeBottomSheet);
+    helpBtn.addEventListener('click', showHelpInfo);
+    initBottomSheetDrag(bottomSheet, handle);
 }
 
-// Gérer la recherche
+// Afficher l'info d'aide
+function showHelpInfo() {
+    const message = "Cette carte affiche les communes accessibles en voiture en 30 minutes maximum depuis un lieu de travail dans le nord-est de Nantes, en conditions de trafic fluide.\n\n" +
+                   "• Vert : accessible en 10 min ou moins\n" +
+                   "• Orange : accessible entre 10 et 20 min\n" +
+                   "• Rouge : accessible entre 20 et 30 min\n\n" +
+                   "Cliquez sur une commune pour voir les prix immobiliers moyens.";
+    
+    alert(message);
+}
+
+// Initialiser le drag du bottom sheet
+function initBottomSheetDrag(sheet, handle) {
+    let startY = 0;
+    let currentTranslate = 0;
+    let isDragging = false;
+    
+    const handleStart = (e) => {
+        isDragging = true;
+        startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        sheet.style.transition = 'none';
+    };
+    
+    const handleMove = (e) => {
+        if (!isDragging) return;
+        
+        const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const diff = currentY - startY;
+        
+        if (diff > 0) {
+            currentTranslate = diff;
+            sheet.style.transform = `translateX(-50%) translateY(${diff}px)`;
+        }
+    };
+    
+    const handleEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        
+        if (currentTranslate > 100) {
+            closeBottomSheet();
+        } else {
+            sheet.style.transform = 'translateX(-50%) translateY(0)';
+        }
+        
+        currentTranslate = 0;
+    };
+    
+    handle.addEventListener('mousedown', handleStart);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    
+    handle.addEventListener('touchstart', handleStart, { passive: true });
+    document.addEventListener('touchmove', handleMove, { passive: true });
+    document.addEventListener('touchend', handleEnd);
+}
+
+// Gérer la recherche avec Fuse.js
 function handleSearch(query) {
     const searchResults = document.getElementById('search-results');
     
-    if (query.length < 2) {
+    
+    if (query.length < 1) {
         hideSearchResults();
         return;
     }
     
-    const queryLower = query.toLowerCase();
-    const matches = state.searchIndex.filter(item => 
-        item.nomLower.includes(queryLower)
-    ).slice(0, 10);
+    searchResults.innerHTML = results.map(result => {
+        const item = result.item;
+        return `<div class="search-result-item" data-id="${item.id}">${item.nom}</div>`;
+    }).join('');
     
-    if (matches.length === 0) {
-        searchResults.innerHTML = '<div class="search-no-results">Aucune commune trouvée</div>';
-        searchResults.classList.remove('hidden');
-        return;
-    }
-    
-    searchResults.innerHTML = matches.map(item => 
-        `<div class="search-result-item" data-id="${item.id}">${item.nom}</div>`
-    ).join('');
-    
-    // Ajouter les événements de clic
     searchResults.querySelectorAll('.search-result-item').forEach(el => {
         el.addEventListener('click', () => {
             const featureId = el.dataset.id;
@@ -314,7 +370,6 @@ function handleMapClick(e) {
         const feature = e.features[0];
         const nom = feature.properties.NOM;
         
-        // Afficher la popup avec le nom
         state.popup
             .setLngLat(e.lngLat)
             .setHTML(`<strong>${nom}</strong>`)
@@ -341,7 +396,6 @@ function selectFeatureById(featureId) {
     if (feature) {
         selectFeature(feature);
         
-        // Calculer le centroïde avec Turf.js et voler vers lui
         const centroid = calculateCentroid(feature.geometry);
         state.map.flyTo({
             center: centroid,
@@ -356,11 +410,9 @@ function selectFeature(feature) {
     const featureId = feature.properties.ID;
     state.selectedFeatureId = featureId;
     
-    // Mettre à jour le filtre de surbrillance
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT, ['==', 'ID', featureId]);
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT + '-line', ['==', 'ID', featureId]);
     
-    // Afficher le bottom sheet
     showBottomSheet(feature.properties);
 }
 
@@ -378,16 +430,13 @@ function showBottomSheet(properties) {
     
     nameEl.textContent = properties.NOM;
     
-    // Afficher le temps en minutes
     const minutes = secondsToMinutes(properties.cost_level);
     timeEl.textContent = `${minutes} min`;
     
-    // Afficher les prix moyens pour appartements
     prixApptEl.textContent = formatPrice(properties.prix_m2_appartement_moy);
     minmaxApptEl.textContent = formatMinMax(properties.min_max_appartement);
     ventesApptEl.textContent = formatVentes(properties.nb_ventes_appartement);
     
-    // Afficher les prix moyens pour maisons
     prixMaisonEl.textContent = formatPrice(properties.prix_m2_maison_moy);
     minmaxMaisonEl.textContent = formatMinMax(properties.min_max_maison);
     ventesMaisonEl.textContent = formatVentes(properties.nb_ventes_maison);
@@ -400,32 +449,23 @@ function closeBottomSheet() {
     const sheet = document.getElementById('bottom-sheet');
     sheet.classList.add('hidden');
     
-    // Retirer la surbrillance
     state.selectedFeatureId = null;
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT, ['==', 'ID', '']);
     state.map.setFilter(CONFIG.LAYER_IDS.HIGHLIGHT + '-line', ['==', 'ID', '']);
     
-    // Fermer la popup
     if (state.popup) {
         state.popup.remove();
     }
 }
 
-// Calculer le centroïde d'une géométrie avec Turf.js
+// Calculer le centroïde avec Turf.js
 function calculateCentroid(geometry) {
     try {
-        // Créer une feature Turf à partir de la géométrie
         const feature = turf.feature(geometry);
-        
-        // Calculer le centroïde avec Turf
         const centroid = turf.centroid(feature);
-        
-        // Retourner les coordonnées [lon, lat]
         return centroid.geometry.coordinates;
     } catch (error) {
         console.error('Erreur calcul centroïde:', error);
-        
-        // Fallback : centre de la bbox
         const bounds = getBoundsOfGeometry(geometry);
         return [
             (bounds[0] + bounds[2]) / 2,
@@ -434,7 +474,7 @@ function calculateCentroid(geometry) {
     }
 }
 
-// Obtenir les bounds d'une géométrie (fallback)
+// Obtenir les bounds d'une géométrie
 function getBoundsOfGeometry(geometry) {
     let minLon = Infinity, minLat = Infinity;
     let maxLon = -Infinity, maxLat = -Infinity;
@@ -454,22 +494,6 @@ function getBoundsOfGeometry(geometry) {
     return [minLon, minLat, maxLon, maxLat];
 }
 
-// Obtenir les bounds du GeoJSON complet
-function getBounds(geojsonData) {
-    let minLon = Infinity, minLat = Infinity;
-    let maxLon = -Infinity, maxLat = -Infinity;
-    
-    geojsonData.features.forEach(feature => {
-        const bounds = getBoundsOfGeometry(feature.geometry);
-        minLon = Math.min(minLon, bounds[0]);
-        minLat = Math.min(minLat, bounds[1]);
-        maxLon = Math.max(maxLon, bounds[2]);
-        maxLat = Math.max(maxLat, bounds[3]);
-    });
-    
-    return [[minLon, minLat], [maxLon, maxLat]];
-}
-
 // Afficher une erreur
 function showError(message) {
     const errorEl = document.getElementById('error-message');
@@ -483,13 +507,8 @@ function showError(message) {
     }, 5000);
 }
 
-// ========================================
-// FONCTIONS DU TABLEAU
-// ========================================
-
 // Initialiser le tableau
 function initTable() {
-    // Préparer les données triées
     tableState.sortedData = state.features
         .map(f => ({
             id: f.properties.ID,
@@ -499,15 +518,11 @@ function initTable() {
             geometry: f.geometry
         }))
         .sort((a, b) => {
-            // Trier par temps puis par nom
             if (a.time !== b.time) return a.time - b.time;
             return a.nom.localeCompare(b.nom);
         });
     
-    // Calculer les compteurs
     updateCounters();
-    
-    // Afficher toutes les communes
     renderTable('all');
 }
 
@@ -529,7 +544,6 @@ function renderTable(filterTime) {
     const tbody = document.getElementById('table-body');
     tableState.currentFilter = filterTime;
     
-    // Filtrer les données
     let filteredData = tableState.sortedData;
     if (filterTime === '600') {
         filteredData = tableState.sortedData.filter(c => c.time <= 600);
@@ -539,7 +553,6 @@ function renderTable(filterTime) {
         filteredData = tableState.sortedData.filter(c => c.time > 1200);
     }
     
-    // Générer le HTML
     if (filteredData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Aucune commune trouvée</td></tr>';
         return;
@@ -559,7 +572,6 @@ function renderTable(filterTime) {
         `;
     }).join('');
     
-    // Ajouter les événements de clic
     tbody.querySelectorAll('tr').forEach(row => {
         const communeId = row.dataset.id;
         if (communeId) {
@@ -587,25 +599,20 @@ function initTableEventListeners() {
     const closeBtn = document.getElementById('close-table-btn');
     const filterBtns = document.querySelectorAll('.filter-btn');
     
-    // Ouvrir/fermer le panneau
     toggleBtn.addEventListener('click', openTablePanel);
     closeBtn.addEventListener('click', closeTablePanel);
     
-    // Filtres
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Retirer la classe active de tous les boutons
             filterBtns.forEach(b => b.classList.remove('active'));
-            // Ajouter la classe active au bouton cliqué
             btn.classList.add('active');
-            // Afficher les données filtrées
             const filterTime = btn.dataset.time;
             renderTable(filterTime);
         });
     });
 }
 
-// Démarrer l'application au chargement de la page
+// Démarrer l'application
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
