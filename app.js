@@ -181,7 +181,7 @@ function initMap(geojsonData) {
             paint: {
                 'line-color': [
                     'case',
-                    ['<=', ['get', 'cost_level'], 600], CONFIG.TIME_CONFIG[600].color,
+                    ['<=', ['get', 'cost_level'], 600], '#14B33E',
                     ['<=', ['get', 'cost_level'], 1200], CONFIG.TIME_CONFIG[1200].color,
                     CONFIG.TIME_CONFIG[1800].color
                 ],
